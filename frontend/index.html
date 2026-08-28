@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSD — Cyclone Safety &amp; Decisions</title>
+    <meta name="description" content="Cyclone digital twin and disaster decision-support prototype." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header shell">
+      <a class="brand" href="#top" aria-label="CSD home"><span class="brand-mark">◌</span> CSD<small>Cyclone Safety and Decision Support</small></a>
+      <nav aria-label="Main navigation">
+        <a href="#weather">Today’s Weather</a>
+        <a href="#active-cyclones">Active Cyclones</a>
+        <a href="#simulator">Simulator</a>
+        <a href="#archive">Historical Archive</a>
+        <a href="#risk">Risk Ranking</a>
+        <a href="#sos">SOS</a>
+      </nav>
+      <div id="apiStatus" class="api-status">Checking backend…</div>
+    </header>
+
+    <main id="top">
+      <section class="hero shell">
+        <p class="eyebrow">CYCLONE PREDICTION &amp; DECISION SUPPORT</p>
+        <h1>One platform for<br /><em>cyclone intelligence.</em></h1>
+        <p class="hero-copy">An all-in-one platform for cyclone prediction, uncertainty visualisation, historical replay and settlement-level risk prioritisation across the North Indian Ocean.</p>
+        <div class="hero-metrics">
+          <div><b>12 h</b><span>Forecast</span></div>
+          <div><b>North Indian Ocean</b><span>Coverage area</span></div>
+        </div>
+      </section>
+
+      <section id="weather" class="section shell weather-section">
+        <div class="section-heading">
+          <div><p class="section-tag">01 / LIVE CONDITIONS</p><h2>Today’s weather in cyclone-prone cities</h2></div>
+          <p>Current temperature and rain probability for selected coastal cities. Live weather data is loaded when this page opens.</p>
+        </div>
+        <div id="weatherCards" class="weather-grid"><div class="empty-state">Loading current weather…</div></div>
+        <p class="weather-source">Weather data: Open-Meteo forecast service. It is separate from the cyclone prediction model.</p>
+      </section>
+
+      <section id="active-cyclones" class="section shell">
+        <div class="section-heading">
+          <div><p class="section-tag">02 / ACTIVE CYCLONES</p><h2>Predict an active cyclone</h2></div>
+          <p>North Indian Ocean observations are checked from the active IBTrACS feed. Select a current cyclone to run this model’s 12-hour forecast and uncertainty corridor.</p>
+        </div>
+        <div class="active-toolbar"><span id="activeCycloneStatus" class="muted">Checking active observations…</span><button id="refreshActiveCyclones" class="secondary-button" type="button">Refresh active cyclones</button></div>
+        <div id="activeCyclones" class="active-cyclone-grid"><div class="empty-state">Loading active cyclone data…</div></div>
+      </section>
+
+      <section id="simulator" class="section shell">
+        <div class="section-heading">
+          <div><p class="section-tag">03 / SIMULATION</p><h2>Cyclone forecast studio</h2></div>
+          <p>Set the cyclone’s current state and movement. The model then recursively forecasts the next 12 hours.</p>
+        </div>
+        <div class="workspace">
+          <form id="simulationForm" class="control-panel">
+            <div class="panel-title"><span>Starting conditions</span><small>All values are required</small></div>
+            <div class="form-grid">
+              <label>Latitude <input name="lat" type="number" step="0.01" min="-90" max="90" value="15" required /></label>
+              <label>Longitude <input name="lon" type="number" step="0.01" min="-180" max="180" value="85" required /></label>
+              <label>Wind <span class="unit">kt</span><input name="wind" type="number" step="0.1" min="0" value="45" required /></label>
+              <label>Pressure <span class="unit">hPa</span><input name="pressure" type="number" step="0.1" min="1" value="990" required /></label>
+              <label>Storm speed <span class="unit">kt</span><input name="stormSpeed" type="number" step="0.1" min="0" value="8" required /></label>
+              <label>Travel direction <span class="unit">°</span><input name="stormDirection" type="number" step="1" min="0" max="360" value="45" required /></label>
+            </div>
+            <label class="full-label">Simulation start time <input name="startTime" type="datetime-local" /></label>
+            <button id="useCurrentTime" class="time-button" type="button">Use current time</button>
+            <p class="form-note">Direction follows map bearings: 0° north, 90° east, 180° south, 270° west. Speed and direction are converted to the movement features required by the model.</p>
+            <button class="primary-button" type="submit">Run 12-hour simulation <span>→</span></button>
+          </form>
+          <div class="map-panel">
+            <div class="map-toolbar"><span><i class="live-dot"></i> Simulation map</span><span id="simulationMapMessage">Awaiting input</span></div>
+            <div id="simulationMap" class="map" aria-label="Cyclone simulation map"></div>
+            <div class="map-legend"><span><i class="legend-line prediction"></i>Predicted path</span><span><i class="legend-ring"></i>Uncertainty</span><span><i class="legend-fill"></i>Impact region</span></div>
+          </div>
+        </div>
+        <div id="simulationResult" class="result-area empty-state">Run a simulation to see the predicted trajectory, uncertainty corridor and evolving storm conditions.</div>
+      </section>
+
+      <section id="archive" class="section shell">
+        <div class="section-heading">
+          <div><p class="section-tag">04 / HISTORICAL ARCHIVE</p><h2>Replay real cyclone observations</h2></div>
+          <p>Search IBTrACS North Indian Ocean records, inspect actual observations, then compare the model against reality.</p>
+        </div>
+        <div class="archive-controls">
+          <label>Cyclone name <input id="archiveName" type="search" placeholder="e.g. PHAILIN" /></label>
+          <label>Year <input id="archiveYear" type="number" min="1990" max="2100" placeholder="e.g. 2013" /></label>
+          <button id="archiveSearch" class="secondary-button" type="button">Search archive</button>
+        </div>
+        <div class="archive-layout">
+          <aside class="archive-list-panel"><div id="archiveList" class="archive-list"><p class="muted">Search by name or year to load historical cyclones.</p></div></aside>
+          <div class="archive-view-panel">
+            <div class="map-toolbar"><span id="archiveTitle">Historical track</span><span id="archiveTimestamp">No cyclone selected</span></div>
+            <div id="archiveMap" class="map" aria-label="Historical cyclone map"></div>
+            <div class="map-legend archive-legend"><span><i class="legend-line history"></i>Historical track</span><span><i class="legend-line prediction"></i>Model prediction</span></div>
+            <div class="playback">
+              <button id="archivePlay" type="button" aria-label="Play historical track">▶</button>
+              <input id="archiveSlider" type="range" min="0" max="0" value="0" disabled />
+              <span id="archivePointText">—</span>
+            </div>
+            <div id="archiveVitals" class="archive-vitals"></div>
+            <div class="comparison-actions">
+              <button id="compareButton" class="secondary-button" type="button" disabled>Compare model vs reality</button>
+              <small id="compareHelp">Choose a historical position with a valid 12-hour window.</small>
+            </div>
+          </div>
+        </div>
+        <div id="comparisonResult" class="comparison-result"></div>
+      </section>
+
+      <section id="risk" class="section shell">
+        <div class="section-heading">
+          <div><p class="section-tag">05 / SETTLEMENT RISK</p><h2>Rank areas near the forecast path</h2></div>
+          <p>Enter settlement locations to apply the backend’s transparent distance, intensity and time-based prototype risk score.</p>
+        </div>
+        <div class="risk-layout">
+          <form id="settlementForm" class="control-panel settlement-form">
+            <div class="panel-title"><span>Add settlement</span><small>Uses the latest simulation</small></div>
+            <label>Area name <input name="area" type="text" placeholder="e.g. Puri" required /></label>
+            <div class="form-grid two"><label>Latitude <input name="lat" type="number" step="0.01" required /></label><label>Longitude <input name="lon" type="number" step="0.01" required /></label></div>
+            <button class="secondary-button" type="submit">Add area</button>
+            <div id="settlementChips" class="settlement-chips"><p class="muted">No areas added yet.</p></div>
+            <button id="rankRiskButton" class="primary-button" type="button" disabled>Rank settlement risk <span>→</span></button>
+          </form>
+          <div class="risk-results-panel"><div id="riskResult" class="empty-state">Run a simulation and add one or more settlements to calculate the risk ranking.</div></div>
+        </div>
+      </section>
+
+      <section id="sos" class="section shell">
+        <div class="section-heading">
+          <div><p class="section-tag">06 / SOS HELPLINES</p><h2>Emergency support</h2></div>
+          <p>Use these direct helplines during an emergency. Calling will open your phone’s dialler; provide your location and the nature of the emergency.</p>
+        </div>
+        <div class="helpline-grid">
+          <a class="helpline-card ambulance" href="tel:108"><span>MEDICAL EMERGENCY</span><b>Ambulance <strong>108</strong></b><small>Tap to call emergency ambulance services</small></a>
+          <a class="helpline-card cyclone" href="tel:0111070"><span>CYCLONE / DISASTER AID</span><b>Disaster Response <strong>011-1070</strong></b><small>National Emergency Response Center helpline</small></a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell"><span>CSD — Chhoti Si Duniya · SIH 2026</span><span>Forecast → impact intelligence → actionable decisions.</span></footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
