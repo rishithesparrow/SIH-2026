@@ -1254,7 +1254,19 @@ from urllib.error import URLError
 from flask import Flask, jsonify, make_response, request
 
 
-app = Flask(__name__)
+# Deployment mode: Flask serves both the API and the existing frontend folder.
+# This gives the published site one URL instead of separate localhost ports.
+app = Flask(
+    __name__,
+    static_folder=str(PROJECT_DIR / "frontend"),
+    static_url_path="",
+)
+
+
+@app.route("/", methods=["GET"])
+def serve_frontend():
+    """Serve the unchanged frontend homepage from the same deployed service."""
+    return app.send_static_file("index.html")
 
 # Fallback values from the previously measured CHANGE_CHANGE recursive test.
 # They are only used if a particular horizon cannot be evaluated.  Normal API
@@ -2227,10 +2239,13 @@ def rank_settlement_risk():
         return _api_error(str(error))
 
 
-# Start the API only when this file is run directly.  It uses port 5000 by
-# default; set an API_PORT environment variable if the frontend needs another.
+# Start locally on port 5000, while respecting the PORT supplied by Render.
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("API_PORT", "5000")), debug=False)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", os.environ.get("API_PORT", "5000"))),
+        debug=False,
+    )
 
 
 
