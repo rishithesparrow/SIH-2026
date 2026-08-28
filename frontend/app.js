@@ -1,5 +1,7 @@
 /* Frontend for the Flask API in ../main.py. Only backend-supported features are rendered. */
-const API_BASE = "http://127.0.0.1:5000/api";
+// Local two-server preview keeps using port 5000.  The deployed Flask site
+// uses its own origin, so it works from any device without localhost calls.
+const API_BASE = window.location.port === "8080" ? "http://127.0.0.1:5000/api" : "/api";
 const maps = {};
 const layers = { simulation: null, archive: null };
 let latestSimulation = null;
